@@ -232,9 +232,13 @@ jobs:
           import os
           import json
           import requests
+          import platform
 
           magisk_apk = """${{ github.event.inputs.magisk_apk }}"""
 
+          is_x86_64 = platform.machine() in ("AMD64", "x86_64")
+          host_abi = "x64" if is_x86_64 else "arm64"
+          
           if not magisk_apk:
               magisk_apk = "stable"
           if magisk_apk == "stable" or magisk_apk == "beta" or magisk_apk == "canary" or magisk_apk == "debug":
@@ -244,7 +248,7 @@ jobs:
 
           arch = "${{ matrix.arch }}"
 
-          abi_map={"x64" : ["x86_64", "x86"], "arm64" : ["arm64-v8a", "armeabi-v7a"]}
+          abi_map = {"x64": ["x86_64", "x86"], "arm64": ["arm64-v8a", "armeabi-v7a"]}
 
           if not os.path.isfile(out_file):
               urllib.request.urlretrieve(magisk_apk, out_file)
@@ -271,9 +275,9 @@ jobs:
               extract_as(zip, f"lib/{ abi_map[arch][0] }/libmagiskboot.so", "magiskboot", "magisk")
               extract_as(zip, f"lib/{ abi_map[arch][0] }/libbusybox.so", "busybox", "magisk")
               if standalone_policy:
-                extract_as(zip, f"lib/{ abi_map['x64'][0] }/libmagiskpolicy.so", "magiskpolicy", ".")
+                extract_as(zip, f"lib/{ abi_map[host_abi][0] }/libmagiskpolicy.so", "magiskpolicy", ".")
               else:
-                extract_as(zip, f"lib/{ abi_map['x64'][0] }/libmagiskinit.so", "magiskpolicy", ".")
+                extract_as(zip, f"lib/{ abi_map[host_abi][0] }/libmagiskinit.so", "magiskpolicy", ".")
               extract_as(zip, f"assets/boot_patch.sh", "boot_patch.sh", "magisk")
               extract_as(zip, f"assets/util_functions.sh", "util_functions.sh", "magisk")
       - name: Download OpenGApps
@@ -379,8 +383,8 @@ jobs:
           sudo find system/sbin -type f -exec chmod 0755 {} \;
           sudo find system/sbin -type f -exec chown root:root {} \;
           sudo find system/sbin -type f -exec chcon --reference system/product {} \;
-          sudo patchelf --replace-needed libc.so "${HOME}/libc.so" ./magiskpolicy || true
-          sudo patchelf --replace-needed libm.so "${HOME}/libm.so" ./magiskpolicy || true
+          sudo patchelf --replace-needed libc.so "${HOME}/libc.so" ./magiskpolicy || abort
+          sudo patchelf --replace-needed libm.so "${HOME}/libm.so" ./magiskpolicy || abort
           sudo patchelf --replace-needed libdl.so "${HOME}/libdl.so" ./magiskpolicy || true
           sudo patchelf --set-interpreter "${HOME}/linker64" ./magiskpolicy || true
           chmod +x ./magiskpolicy
